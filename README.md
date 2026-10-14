@@ -22,11 +22,17 @@ python 원시자료_정리봇.py
 ## exe 만들기 (Python 없는 PC용)
 ```bash
 py -m pip install pyinstaller
-py -m PyInstaller --onefile --console --name 원시자료_정리봇_alpha_0.1 원시자료_정리봇.py
+py -m PyInstaller --onefile --console --name 원시자료_정리봇_alpha_0.2 원시자료_정리봇.py
 ```
-`dist/원시자료_정리봇_alpha_0.1.exe` 가 생성됩니다.
+`dist/원시자료_정리봇_alpha_0.2.exe` 가 생성됩니다.
 
 ## 버전 이력
+### alpha_0.2 (2026-10-14)
+- 수정: 제품명에 `/` 등 파일 이름에 쓸 수 없는 문자가 있으면 저장에 실패하고 exe 창이 바로 닫히던 문제 (`\ / : * ? " < > |` → `_`)
+- 예상하지 못한 오류도 화면에 표시하고 Enter를 누를 때까지 창을 유지
+- 작업이 끝나면 결과 폴더를 자동으로 엶
+- 글리팜엠정2-500(2610B0045, 보고 1건)으로 exe 실행 확인
+
 ### alpha_0.1 (2026-10-14)
 - 실제 원시자료(글리팜정4mg, 접수번호 2610B0048, 보고 15건)로 첫 실행 검증
   - 의심 6행 / 병용 15행: txt에서 직접 센 값과 일치

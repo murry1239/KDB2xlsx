@@ -30,8 +30,10 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import os
 import re
 import sys
+import traceback
 from pathlib import Path
 
 # 한글 Windows(cp949)에서 출력할 수 없는 문자가 있어도 멈추지 않도록 함
@@ -54,7 +56,7 @@ except ImportError:
 # ════════════════════════════════════════════════════════════════════
 # 설정
 # ════════════════════════════════════════════════════════════════════
-VERSION = "alpha_0.1"
+VERSION = "alpha_0.2"
 
 SHEET_ORDER = ["README", "DEMO", "HIST_E", "PARENT", "EVENT", "TEST", "DRUG",
                "DRUG1", "DRUG2", "DRUG3", "DRUG_EVENT", "ASSESSMENT", "GROUP"]
@@ -596,6 +598,7 @@ def save_split_file(data: dict, path: Path, sheet_prefix: str, drug_display_name
 # 실행 흐름
 # ════════════════════════════════════════════════════════════════════
 def out_name(product: str, no: str, date: str) -> str:
+    product = re.sub(r'[\\/:*?"<>|]', "_", product)   # 파일 이름에 쓸 수 없는 문자 (예: 2/500 → 2_500)
     return f"원시자료_{product}_{no}_{date}.xlsx"
 
 
@@ -695,7 +698,12 @@ def main() -> None:
     else:
         run_steps_4_6(loaded, out_dir, product, drug_name, sheet_prefix, date)
 
-    log(f"\n완료되었습니다.  저장 위치: {out_dir}")
+    log(f"\n완료되었습니다.  저장 위치: {out_dir.resolve()}")
+    if sys.stdin.isatty() and hasattr(os, "startfile"):
+        try:
+            os.startfile(out_dir.resolve())   # 결과 폴더 열기
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":
@@ -705,4 +713,13 @@ if __name__ == "__main__":
         print(f"\n[오류] {e}")
     except PermissionError as e:
         print(f"\n[오류] 파일을 저장할 수 없습니다. 같은 이름의 엑셀 파일이 열려 있으면 닫고 다시 실행하세요.\n  {e}")
-    input("\nEnter 를 누르면 종료합니다.")
+    except (KeyboardInterrupt, EOFError):
+        print("\n중단되었습니다.")
+    except Exception:
+        # 예상하지 못한 오류도 창이 바로 닫히지 않도록 화면에 표시
+        print("\n[오류] 예상하지 못한 오류가 발생했습니다. 아래 내용을 개발자에게 전달해 주세요.\n")
+        traceback.print_exc()
+    try:
+        input("\nEnter 를 누르면 종료합니다.")
+    except EOFError:
+        pass
