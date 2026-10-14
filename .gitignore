@@ -9,3 +9,8 @@
 __pycache__/
 *.pyc
 .venv/
+
+# 빌드 결과 (exe는 GitHub에 올리지 않음)
+dist/
+build/
+*.spec

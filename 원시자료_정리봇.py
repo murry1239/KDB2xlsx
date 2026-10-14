@@ -34,6 +34,13 @@ import re
 import sys
 from pathlib import Path
 
+# 한글 Windows(cp949)에서 출력할 수 없는 문자가 있어도 멈추지 않도록 함
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 try:
     import openpyxl
     from openpyxl.worksheet.table import Table, TableStyleInfo
@@ -47,6 +54,8 @@ except ImportError:
 # ════════════════════════════════════════════════════════════════════
 # 설정
 # ════════════════════════════════════════════════════════════════════
+VERSION = "alpha_0.1"
+
 SHEET_ORDER = ["README", "DEMO", "HIST_E", "PARENT", "EVENT", "TEST", "DRUG",
                "DRUG1", "DRUG2", "DRUG3", "DRUG_EVENT", "ASSESSMENT", "GROUP"]
 
@@ -217,7 +226,7 @@ def col_index(sheet: dict, name: str, sheet_name: str) -> int:
 
 
 def code_key(v) -> str | None:
-    """코드값 비교용 정규화: 1, 1.0, '1', ' 1 ' → '1'"""
+    """코드값 비교용 정규화: 1, 1.0, '1', ' 1 ', '001' → '1'"""
     if v is None:
         return None
     if isinstance(v, float) and v.is_integer():
@@ -227,6 +236,8 @@ def code_key(v) -> str | None:
         return None
     if re.fullmatch(r"-?\d+\.0+", s):
         s = s.split(".")[0]
+    if re.fullmatch(r"\d+", s):   # 앞자리 0 제거: '00103' → '103'
+        s = str(int(s))
     return s.upper()
 
 
@@ -635,7 +646,7 @@ def ask(prompt: str, default: str | None = None) -> str:
 
 def main() -> None:
     print("=" * 60)
-    print(" 원시자료 정리봇")
+    print(f" 원시자료 정리봇  ({VERSION})")
     print("=" * 60)
     print(" [1] 전체 실행     (txt → _01 ~ _30)")
     print(" [2] 1~3단계만     (txt → _01, _02, _03)  ※ 이후 PT/SOC 직접 입력")
