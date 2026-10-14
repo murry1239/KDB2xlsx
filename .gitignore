@@ -1,0 +1,11 @@
+# 원시자료(이상사례 데이터)는 민감정보이므로 저장소에 올리지 않음
+*.txt
+*.xlsx
+*.xls
+*.csv
+!docs/*.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
