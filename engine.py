@@ -1,24 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-원시자료 정리봇  (Python 3.11 / 필요 패키지: openpyxl)
+원시자료 정리봇 처리 엔진  (Python 3.11 / 필요 패키지: openpyxl)
 
 KAERS 원시자료 txt 13개를 읽어 아래 6개 파일을 만듭니다.
-  _01 : txt 13개 → 시트 13개
-  _02 : 한글 설명 열 추가(빈 열)
-  _03 : 코드값 → 한글 정보 입력
-  _10 : DRUG_EVENT 시트에 다른 시트 정보 불러오기
-  _20 : DRUG_EVENT 값만 새 파일로 (Sheet1)
-  _30 : 원본 / 제품명_의심 / 제품명_병용 시트
+  A단계  txt → _01, _02, _03
+    _01 : txt 13개 → 시트 13개
+    _02 : 한글 설명 열 추가(빈 열)
+    _03 : 코드값 → 한글 정보 입력
+  (사용자: _03 파일에 PT_한국어/SOC_한국어(EVENT), 반영여부(DRUG_EVENT) 입력)
+  B단계  _03 → _10, _20, _30
+    _10 : DRUG_EVENT 시트에 다른 시트 정보 불러오기
+    _20 : DRUG_EVENT 값만 새 파일로 (Sheet1)
+    _30 : 원본 / 제품명_의심 / 제품명_병용 시트
 
-사용법
-  1) 명령 프롬프트에서:  python 원시자료_정리봇.py
-  2) 화면 질문에 따라 작업 종류, txt 폴더, 제품명 등을 입력
-
-작업 종류
-  [1] 전체 실행      : txt → _01, _02, _03, _10, _20, _30
-  [2] 1~3단계만      : txt → _01, _02, _03
-                       (이후 _03 파일 EVENT 시트에 PT_한국어/SOC_한국어 직접 입력)
-  [3] 4~6단계만      : PT/SOC 입력을 마친 _03 파일 → _10, _20, _30
+화면은 app.py 에 있습니다.
 
 명세 대비 수정 사항
   - 4단계 수식 중 부서접수번호/보고자관리번호/보고완료일의
@@ -29,34 +24,19 @@ KAERS 원시자료 txt 13개를 읽어 아래 6개 파일을 만듭니다.
 from __future__ import annotations
 
 import csv
-import datetime as dt
-import os
+import logging
 import re
-import sys
-import traceback
 from pathlib import Path
 
-# 한글 Windows(cp949)에서 출력할 수 없는 문자가 있어도 멈추지 않도록 함
-for _stream in (sys.stdout, sys.stderr):
-    try:
-        _stream.reconfigure(errors="replace")
-    except (AttributeError, ValueError):
-        pass
-
-try:
-    import openpyxl
-    from openpyxl.worksheet.table import Table, TableStyleInfo
-    from openpyxl.utils import get_column_letter
-except ImportError:
-    print("openpyxl 이 필요합니다.  명령 프롬프트에서  pip install openpyxl  실행 후 다시 시도하세요.")
-    input("Enter 를 누르면 종료합니다.")
-    sys.exit(1)
+import openpyxl
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.utils import get_column_letter
 
 
 # ════════════════════════════════════════════════════════════════════
 # 설정
 # ════════════════════════════════════════════════════════════════════
-VERSION = "alpha_0.2"
+VERSION = "원시자료 정리봇 alpha_0.3"
 
 SHEET_ORDER = ["README", "DEMO", "HIST_E", "PARENT", "EVENT", "TEST", "DRUG",
                "DRUG1", "DRUG2", "DRUG3", "DRUG_EVENT", "ASSESSMENT", "GROUP"]
@@ -216,8 +196,14 @@ class BotError(Exception):
     pass
 
 
+logger = logging.getLogger("rawbot")
+
+
 def log(msg: str) -> None:
-    print(msg, flush=True)
+    if msg.lstrip().startswith(("!", "※")):
+        logger.warning(msg)
+    else:
+        logger.info(msg)
 
 
 def col_index(sheet: dict, name: str, sheet_name: str) -> int:
@@ -511,7 +497,7 @@ def save_full_workbook(data: dict, path: Path) -> None:
         write_rows(ws, sh["headers"], sh["rows"])
         add_table(ws, name, len(sh["headers"]), len(sh["rows"]))
     wb.save(path)
-    log(f"   ✔ 저장: {path.name}")
+    log(f"   저장 완료: {path.name}")
 
 
 def load_full_workbook(path: Path) -> dict:
@@ -565,7 +551,7 @@ def save_values_file(data: dict, path: Path) -> None:
     write_rows(ws, de["headers"], de["rows"])
     ws.freeze_panes = "D2"
     wb.save(path)
-    log(f"   ✔ 저장: {path.name}")
+    log(f"   저장 완료: {path.name}")
 
 
 def save_split_file(data: dict, path: Path, sheet_prefix: str, drug_display_name: str) -> dict:
@@ -590,19 +576,36 @@ def save_split_file(data: dict, path: Path, sheet_prefix: str, drug_display_name
         s.freeze_panes = "D2"
         counts[kind] = len(rows)
     wb.save(path)
-    log(f"   ✔ 저장: {path.name}  (의심 {counts['의심']}행, 병용 {counts['병용']}행)")
+    log(f"   저장 완료: {path.name}  (의심 {counts['의심']}행, 병용 {counts['병용']}행)")
     return counts
 
 
 # ════════════════════════════════════════════════════════════════════
-# 실행 흐름
+# 실행 흐름: A단계(txt → 01~03), B단계(03 → 10~30)
 # ════════════════════════════════════════════════════════════════════
+OUT_NAME_RE = re.compile(r"^원시자료_(?P<product>.+)_(?P<no>\d{2})_(?P<date>\d{8})$")
+USER_INPUT_COLUMNS = [("EVENT", "PT_한국어"), ("EVENT", "SOC_한국어"), ("DRUG_EVENT", "반영여부")]
+
+
 def out_name(product: str, no: str, date: str) -> str:
-    product = re.sub(r'[\\/:*?"<>|]', "_", product)   # 파일 이름에 쓸 수 없는 문자 (예: 2/500 → 2_500)
+    product = re.sub(r'[\/:*?"<>|]', "_", product)   # 파일 이름에 쓸 수 없는 문자 (예: 2/500 → 2_500)
     return f"원시자료_{product}_{no}_{date}.xlsx"
 
 
-def run_steps_1_3(txt_dir: Path, out_dir: Path, product: str, drug_name: str, date: str) -> dict:
+def parse_out_name(path: Path) -> dict | None:
+    """'원시자료_제품명_03_YYYYMMDD.xlsx' → {product, no, date}"""
+    m = OUT_NAME_RE.match(Path(path).stem)
+    return m.groupdict() if m else None
+
+
+def run_step_a(txt_dir: Path, out_dir: Path, product: str, drug_name: str, date: str) -> Path:
+    """A단계: txt 13개 → _01, _02, _03.  _03 파일 경로를 돌려줌"""
+    txt_dir, out_dir = Path(txt_dir), Path(out_dir)
+    if not txt_dir.is_dir():
+        raise BotError(f"txt 폴더가 없습니다: {txt_dir}")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    log(f"[A단계 시작] txt 폴더: {txt_dir}")
+
     log("\n[1단계] txt 불러오기")
     data = read_txt_folder(txt_dir)
     save_full_workbook(data, out_dir / out_name(product, "01", date))
@@ -613,17 +616,50 @@ def run_steps_1_3(txt_dir: Path, out_dir: Path, product: str, drug_name: str, da
 
     log("\n[3단계] 코드 → 한글 정보 입력")
     step3_fill_codes(data, drug_name)
-    save_full_workbook(data, out_dir / out_name(product, "03", date))
-    return data
+    path03 = out_dir / out_name(product, "03", date)
+    save_full_workbook(data, path03)
+    return path03
 
 
-def run_steps_4_6(data: dict, out_dir: Path, product: str, drug_name: str,
-                  sheet_prefix: str, date: str) -> None:
-    ev = data["EVENT"]
-    pi = col_index(ev, "PT_한국어", "EVENT")
-    blank_pt = sum(1 for r in ev["rows"] if r[pi] in (None, ""))
-    if blank_pt:
-        log(f"\n   ※ EVENT 시트의 PT_한국어가 비어 있는 행이 {blank_pt}개 있습니다. (DRUG_EVENT 에 0 으로 표시)")
+def drug_names_in(path03: Path) -> list[str]:
+    """_03 파일 DRUG 시트 [의약품명]에 입력된 이름 목록"""
+    wb = openpyxl.load_workbook(path03, read_only=True, data_only=True)
+    try:
+        if "DRUG" not in wb.sheetnames:
+            raise BotError(f"{Path(path03).name} 에 [DRUG] 시트가 없습니다.")
+        rows = wb["DRUG"].iter_rows(values_only=True)
+        headers = [str(h).strip() if h is not None else "" for h in next(rows, [])]
+        if "의약품명" not in headers:
+            raise BotError(f"{Path(path03).name} 의 [DRUG] 시트에 [의약품명] 열이 없습니다. _03 파일이 맞는지 확인하세요.")
+        ni = headers.index("의약품명")
+        return sorted({str(r[ni]) for r in rows if ni < len(r) and r[ni] not in (None, "", 0)})
+    finally:
+        wb.close()
+
+
+def check_user_inputs(data: dict) -> list[str]:
+    """사용자가 _03 에 입력해야 하는 열 중 비어 있는 칸 수"""
+    notes = []
+    for sheet_name, col in USER_INPUT_COLUMNS:
+        sh = data[sheet_name]
+        i = col_index(sh, col, sheet_name)
+        blank = sum(1 for r in sh["rows"] if r[i] in (None, ""))
+        if blank:
+            notes.append(f"[{sheet_name}] {col}: {len(sh['rows'])}행 중 {blank}행 비어 있음")
+    return notes
+
+
+def run_step_b(path03: Path, out_dir: Path, product: str, drug_name: str,
+               sheet_prefix: str, date: str) -> Path:
+    """B단계: PT/SOC/반영여부 입력을 마친 _03 → _10, _20, _30.  _30 파일 경로를 돌려줌"""
+    path03, out_dir = Path(path03), Path(out_dir)
+    if not path03.is_file():
+        raise BotError(f"_03 파일이 없습니다: {path03}")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    log(f"[B단계 시작] _03 파일: {path03}")
+    data = load_full_workbook(path03)
+    for note in check_user_inputs(data):
+        log(f"   ! 입력 확인: {note} (DRUG_EVENT 에 0 또는 빈칸으로 표시)")
 
     log("\n[4단계] DRUG_EVENT 정보 불러오기")
     step4_lookup(data)
@@ -633,93 +669,6 @@ def run_steps_4_6(data: dict, out_dir: Path, product: str, drug_name: str,
     save_values_file(data, out_dir / out_name(product, "20", date))
 
     log("\n[6단계] 의심 / 병용 시트 나누기")
-    save_split_file(data, out_dir / out_name(product, "30", date), sheet_prefix, drug_name)
-
-
-# ── 화면 입력 ─────────────────────────────────────────────────────
-def ask(prompt: str, default: str | None = None) -> str:
-    tip = f" [{default}]" if default else ""
-    while True:
-        v = input(f"{prompt}{tip}: ").strip().strip('"')
-        if v:
-            return v
-        if default is not None:
-            return default
-
-
-def main() -> None:
-    print("=" * 60)
-    print(f" 원시자료 정리봇  ({VERSION})")
-    print("=" * 60)
-    print(" [1] 전체 실행     (txt → _01 ~ _30)")
-    print(" [2] 1~3단계만     (txt → _01, _02, _03)  ※ 이후 PT/SOC 직접 입력")
-    print(" [3] 4~6단계만     (PT/SOC 입력한 _03 파일 → _10, _20, _30)")
-    mode = ask("작업 번호", "1")
-    if mode not in {"1", "2", "3"}:
-        raise BotError("작업 번호는 1, 2, 3 중 하나를 입력하세요.")
-
-    if mode in {"1", "2"}:
-        src = Path(ask("txt 파일 13개가 들어 있는 폴더 경로"))
-        if not src.is_dir():
-            raise BotError(f"폴더가 없습니다: {src}")
-    else:
-        src = Path(ask("PT/SOC 입력을 마친 _03 엑셀 파일 경로"))
-        if not src.is_file():
-            raise BotError(f"파일이 없습니다: {src}")
-
-    loaded = None
-    product = ask("제품명 (파일 이름용, 예: 그리타존정15mg)")
-    if mode == "3":
-        log("\n[_03 파일 읽기]")
-        loaded = load_full_workbook(src)
-        dr = loaded["DRUG"]
-        ni = col_index(dr, "의약품명", "DRUG")
-        names = sorted({str(r[ni]) for r in dr["rows"] if r[ni] not in (None, "", 0)})
-        if len(names) == 1:
-            drug_name = names[0]
-            log(f"   - DRUG [의약품명]: '{drug_name}'")
-        else:
-            drug_name = ask("DRUG 시트 [의약품명] 중 의심/병용으로 나눌 제품 이름", names[0] if names else None)
-    else:
-        drug_name = ask("DRUG 시트 [의약품명]에 표시할 이름 (예: 그리타존정15밀리그램)", product)
-    sheet_prefix = ask("_30 파일 시트 이름 앞부분 (예: 그리타존정)", product) if mode != "2" else product
-    date = ask("파일 날짜 YYYYMMDD", dt.date.today().strftime("%Y%m%d"))
-    if not re.fullmatch(r"\d{8}", date):
-        raise BotError("날짜는 YYYYMMDD 8자리 숫자로 입력하세요.")
-    out_dir = Path(ask("결과 저장 폴더", str(src if src.is_dir() else src.parent)))
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    if mode == "1":
-        data = run_steps_1_3(src, out_dir, product, drug_name, date)
-        run_steps_4_6(data, out_dir, product, drug_name, sheet_prefix, date)
-    elif mode == "2":
-        run_steps_1_3(src, out_dir, product, drug_name, date)
-        log("\n다음 작업: _03 파일 EVENT 시트에 PT_한국어 / SOC_한국어 입력 후 [3] 번으로 실행하세요.")
-    else:
-        run_steps_4_6(loaded, out_dir, product, drug_name, sheet_prefix, date)
-
-    log(f"\n완료되었습니다.  저장 위치: {out_dir.resolve()}")
-    if sys.stdin.isatty() and hasattr(os, "startfile"):
-        try:
-            os.startfile(out_dir.resolve())   # 결과 폴더 열기
-        except OSError:
-            pass
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except BotError as e:
-        print(f"\n[오류] {e}")
-    except PermissionError as e:
-        print(f"\n[오류] 파일을 저장할 수 없습니다. 같은 이름의 엑셀 파일이 열려 있으면 닫고 다시 실행하세요.\n  {e}")
-    except (KeyboardInterrupt, EOFError):
-        print("\n중단되었습니다.")
-    except Exception:
-        # 예상하지 못한 오류도 창이 바로 닫히지 않도록 화면에 표시
-        print("\n[오류] 예상하지 못한 오류가 발생했습니다. 아래 내용을 개발자에게 전달해 주세요.\n")
-        traceback.print_exc()
-    try:
-        input("\nEnter 를 누르면 종료합니다.")
-    except EOFError:
-        pass
+    path30 = out_dir / out_name(product, "30", date)
+    save_split_file(data, path30, sheet_prefix, drug_name)
+    return path30
