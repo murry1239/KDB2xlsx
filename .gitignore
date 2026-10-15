@@ -4,6 +4,7 @@
 *.xls
 *.csv
 !docs/*.txt
+!requirements.txt
 
 # Python
 __pycache__/
