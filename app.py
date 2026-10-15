@@ -2,8 +2,9 @@
 """원시자료 정리봇 화면 (tkinter)
 
 A. txt 폴더 → _01, _02, _03
-   사용자가 _03 파일에 PT_한국어/SOC_한국어(EVENT 시트), 반영여부(DRUG_EVENT 시트) 입력
+   사용자가 _03 파일 EVENT 시트에 PT_한국어/SOC_한국어 입력
 B. _03 파일 → _10, _20, _30
+   사용자가 _30 파일 확인 후 LLT_한국어/반영여부 직접 입력
 
 명령줄 실행(검증용):
   python app.py --step A --txt "폴더" --product 제품명 --drug-name 의약품명 [--out 폴더] [--date YYYYMMDD]
@@ -102,8 +103,8 @@ class App:
         self.entry_row(a, 3, "파일 날짜", self.a_date, "YYYYMMDD")
         self.path_row(a, 4, "결과 저장 폴더", self.a_out, lambda: self.pick_dir(self.a_out))
         ttk.Label(a, foreground="#555555", justify="left", text=(
-            "실행 후 _03 파일을 엑셀로 열어 입력하고 저장한 뒤 B 탭으로 진행합니다.\n"
-            "  · EVENT 시트: PT_한국어, SOC_한국어      · DRUG_EVENT 시트: 반영여부")
+            "실행 후 _03 파일 EVENT 시트에 PT_한국어, SOC_한국어를 입력·저장하고 B 탭으로 진행합니다.\n"
+            "LLT_한국어, 반영여부는 B 실행 후 _30 파일을 확인하며 직접 입력합니다.")
         ).grid(row=5, column=0, columnspan=3, sticky="w", pady=(8, 0))
         self.action_button(a, "A 실행  (txt → 01, 02, 03)", self.run_a).grid(row=6, column=0, columnspan=3, sticky="e", pady=(8, 0))
         a.columnconfigure(1, weight=1)
@@ -185,7 +186,7 @@ class App:
 
     def pick_03(self):
         from tkinter import filedialog, messagebox
-        p = filedialog.askopenfilename(title="PT/SOC/반영여부 입력을 마친 _03 파일",
+        p = filedialog.askopenfilename(title="PT/SOC 입력을 마친 _03 파일",
                                        filetypes=[("엑셀 파일", "*.xlsx")], parent=self.root)
         if not p:
             return
@@ -291,14 +292,13 @@ class App:
                     self.write(f"A단계 완료: {value}", "done")
                     self.status.set("A단계 완료 — _03 파일에 입력 후 B 탭에서 실행하세요.")
                     if messagebox.askyesno("A단계 완료",
-                                           f"{value.name}\n\n_03 파일에 다음을 입력하고 저장한 뒤 B 탭에서 실행하세요.\n"
-                                           "  · EVENT 시트: PT_한국어, SOC_한국어\n  · DRUG_EVENT 시트: 반영여부\n\n"
+                                           f"{value.name}\n\n_03 파일 EVENT 시트에 PT_한국어, SOC_한국어를 입력하고\n저장한 뒤 B 탭에서 실행하세요.\n\n"
                                            "지금 _03 파일을 열까요?", parent=self.root):
                         open_path(value)
                 else:
                     self.write(f"B단계 완료: {value.parent}", "done")
                     self.status.set(f"B단계 완료 — {value.parent}")
-                    if messagebox.askyesno("B단계 완료", f"_10, _20, _30 파일을 만들었습니다.\n{value.parent}\n\n결과 폴더를 열까요?",
+                    if messagebox.askyesno("B단계 완료", f"_10, _20, _30 파일을 만들었습니다.\n{value.parent}\n\n_30 파일을 확인하며 LLT_한국어, 반영여부를 입력하세요.\n결과 폴더를 열까요?",
                                            parent=self.root):
                         open_path(value.parent)
         except queue.Empty:

@@ -60,15 +60,12 @@ class EngineFlowTest(unittest.TestCase):
             (txt / f"{name}.txt").write_text(body, encoding="utf-8-sig")
         cls.out = root
         cls.path03 = engine.run_step_a(txt, root, "테스트정2/500", "테스트정밀리그램", "20261015")
-        # 사용자 입력 흉내: _03 에 PT/SOC/반영여부 입력
+        # 사용자 입력 흉내: _03 EVENT 시트에 PT/SOC 입력
         wb = openpyxl.load_workbook(cls.path03)
         ev = wb["EVENT"]; h = [c.value for c in ev[1]]
         for r in range(2, ev.max_row + 1):
             ev.cell(r, h.index("PT_한국어") + 1, f"PT-{ev.cell(r, 1).value}")
             ev.cell(r, h.index("SOC_한국어") + 1, f"SOC-{ev.cell(r, 1).value}")
-        de = wb["DRUG_EVENT"]; h = [c.value for c in de[1]]
-        for r in range(2, de.max_row + 1):
-            de.cell(r, h.index("반영여부") + 1, "Y")
         wb.save(cls.path03)
         names = engine.drug_names_in(cls.path03)
         cls.names = names
@@ -107,7 +104,8 @@ class EngineFlowTest(unittest.TestCase):
         self.assertEqual(r["재투여 및 재발현 여부"], "재투여하지 않아 해당사항 없음")
         self.assertEqual(r["평가결과"], "가능함")
         self.assertEqual(r["PT_한국어"], "PT-1001")
-        self.assertEqual(r["반영여부"], "Y")
+        for row in rows:                                     # 사용자가 _30 에서 직접 입력: 제목만, 값은 공란
+            self.assertIsNone(row["LLT_한국어"]); self.assertIsNone(row["반영여부"])
         self.assertEqual(r["최초추적그룹번호"], 9001)
         self.assertEqual(rows[1]["의약품명"], 0)             # 제품 외 병용약: 엑셀처럼 빈 셀 → 0
         self.assertEqual(rows[2]["중대한 이상사례(Y/0)"], "Y")

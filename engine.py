@@ -7,11 +7,12 @@ KAERS 원시자료 txt 13개를 읽어 아래 6개 파일을 만듭니다.
     _01 : txt 13개 → 시트 13개
     _02 : 한글 설명 열 추가(빈 열)
     _03 : 코드값 → 한글 정보 입력
-  (사용자: _03 파일에 PT_한국어/SOC_한국어(EVENT), 반영여부(DRUG_EVENT) 입력)
+  (사용자: _03 파일 EVENT 시트에 PT_한국어/SOC_한국어 입력)
   B단계  _03 → _10, _20, _30
     _10 : DRUG_EVENT 시트에 다른 시트 정보 불러오기
     _20 : DRUG_EVENT 값만 새 파일로 (Sheet1)
     _30 : 원본 / 제품명_의심 / 제품명_병용 시트
+  (사용자: _30 파일 확인 후 LLT_한국어/반영여부 직접 입력 — 제목 행만 만듦)
 
 화면은 app.py 에 있습니다.
 
@@ -36,7 +37,7 @@ from openpyxl.utils import get_column_letter
 # ════════════════════════════════════════════════════════════════════
 # 설정
 # ════════════════════════════════════════════════════════════════════
-VERSION = "원시자료 정리봇 alpha_0.3"
+VERSION = "원시자료 정리봇 alpha_0.3.1"
 
 SHEET_ORDER = ["README", "DEMO", "HIST_E", "PARENT", "EVENT", "TEST", "DRUG",
                "DRUG1", "DRUG2", "DRUG3", "DRUG_EVENT", "ASSESSMENT", "GROUP"]
@@ -176,7 +177,7 @@ DRUG_EVENT_LOOKUPS = [
     ("최초추적그룹 일련번호(seq)", "GROUP", "SEQ", "K"),        # =INDEX(GROUP!C:C,MATCH(A2,GROUP!A:A,0))
     ("보고무효화/수정(삭제/수정/0)", "DEMO", "보고무효화", "K"),  # =INDEX(DEMO!S:S, ...)
 ]
-# LLT_한국어, 반영여부 : 제공된 수식이 없어 공란
+# LLT_한국어, 반영여부 : 사용자가 _30 파일 확인 후 직접 입력하므로 제목 행만 두고 공란
 
 KEY_COLUMNS = {
     "K": ["KAERS_NO"],
@@ -584,7 +585,7 @@ def save_split_file(data: dict, path: Path, sheet_prefix: str, drug_display_name
 # 실행 흐름: A단계(txt → 01~03), B단계(03 → 10~30)
 # ════════════════════════════════════════════════════════════════════
 OUT_NAME_RE = re.compile(r"^원시자료_(?P<product>.+)_(?P<no>\d{2})_(?P<date>\d{8})$")
-USER_INPUT_COLUMNS = [("EVENT", "PT_한국어"), ("EVENT", "SOC_한국어"), ("DRUG_EVENT", "반영여부")]
+USER_INPUT_COLUMNS = [("EVENT", "PT_한국어"), ("EVENT", "SOC_한국어")]
 
 
 def out_name(product: str, no: str, date: str) -> str:
@@ -651,7 +652,7 @@ def check_user_inputs(data: dict) -> list[str]:
 
 def run_step_b(path03: Path, out_dir: Path, product: str, drug_name: str,
                sheet_prefix: str, date: str) -> Path:
-    """B단계: PT/SOC/반영여부 입력을 마친 _03 → _10, _20, _30.  _30 파일 경로를 돌려줌"""
+    """B단계: PT/SOC 입력을 마친 _03 → _10, _20, _30.  _30 파일 경로를 돌려줌"""
     path03, out_dir = Path(path03), Path(out_dir)
     if not path03.is_file():
         raise BotError(f"_03 파일이 없습니다: {path03}")
