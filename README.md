@@ -43,7 +43,7 @@ KAERS 이상사례 원시자료 txt 13개(README, DEMO, HIST_E, PARENT, EVENT, T
 | `engine.py` | 처리 엔진 (txt 읽기, 열 추가, 코드 변환, 정보 불러오기, 저장) |
 | `tests/test_engine.py` | 가상 자료로 A → 입력 → B 전체 흐름 검증 |
 | `INSTALL.bat` / `RUN.bat` / `DIAGNOSE.bat` / `TEST.bat` | 설치·실행·진단·시험 |
-| `docs/` | 작업 명세와 claude.ai 채팅 작업기록 |
+| `docs/` | 작업 명세, claude.ai 채팅 작업기록, Claude Code 작업기록 |
 
 ## 개발과 검증
 
