@@ -25,6 +25,8 @@ KAERS 이상사례 원시자료 txt 13개(README, DEMO, HIST_E, PARENT, EVENT, T
 ### 방법 2 — 소스 폴더 (Python 3.11 이상)
 1. 처음 한 번 `INSTALL.bat` 실행 (가상환경 `.venv`와 openpyxl 설치, 인터넷 필요)
 2. 이후에는 `RUN.bat`만 실행
+   - `MAKE_SHORTCUT.bat`을 한 번 실행하면 바탕화면과 시작 메뉴에 **원시자료 정리봇** 바로가기가 생깁니다. 이후에는 바로가기 또는 Windows 키 → "원시자료" 검색으로 실행합니다.
+   - 프로그램 폴더를 옮기면 `MAKE_SHORTCUT.bat`을 다시 실행하세요.
 3. 문제가 생기면 `DIAGNOSE.bat` 결과를 전달
 
 ## 오류와 로그
@@ -43,6 +45,7 @@ KAERS 이상사례 원시자료 txt 13개(README, DEMO, HIST_E, PARENT, EVENT, T
 | `engine.py` | 처리 엔진 (txt 읽기, 열 추가, 코드 변환, 정보 불러오기, 저장) |
 | `tests/test_engine.py` | 가상 자료로 A → 입력 → B 전체 흐름 검증 |
 | `INSTALL.bat` / `RUN.bat` / `DIAGNOSE.bat` / `TEST.bat` | 설치·실행·진단·시험 |
+| `MAKE_SHORTCUT.bat` / `.ps1` | 바탕화면·시작 메뉴 바로가기 만들기 |
 | `docs/` | 작업 명세, claude.ai 채팅 작업기록, Claude Code 작업기록 |
 
 ## 개발과 검증
